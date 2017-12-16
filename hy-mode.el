@@ -156,8 +156,8 @@ will indent special. Exact forms require the symbol and def exactly match.")
   '("True" "False" "None"
     "Ellipsis"
     "NotImplemented"
-    "nil"  ; For those that alias None as nil
-    )
+    "nil")  ; For those that alias None as nil
+    
 
   "Hy constant keywords.")
 
@@ -442,8 +442,8 @@ will indent special. Exact forms require the symbol and def exactly match.")
         hy--font-lock-kwds-variables
 
         (when hy-font-lock-highlight-percent-args?
-          hy--font-lock-kwds-anonymous-funcs)
-        )
+          hy--font-lock-kwds-anonymous-funcs))
+        
   "All Hy font lock keywords.")
 
 ;;; Utilities
@@ -481,6 +481,15 @@ will indent special. Exact forms require the symbol and def exactly match.")
 
       (concat (buffer-substring-no-properties start-pos (point)) "\n"))))
 
+(defun hy--prev-form-string ()
+  "Get previous expression as string plus a trailing newline"
+  (concat
+   (buffer-substring-no-properties
+    (save-excursion
+      ;; if we fail with error, we fail with error
+      (backwards-sexp) (point))
+    (point))))
+                             
 ;;; Indentation
 ;;;; Utilities
 
@@ -1343,7 +1352,7 @@ Not all defuns can be argspeced - eg. C defuns.\"
 
 (defun hy--company-format-str (string)
   "Format STRING to send to hy for completion candidates."
-  (-some->> string (format "(--HYCOMPANY \"%s\")" )))
+  (-some->> string (format "(--HYCOMPANY \"%s\")")))
 
 (defun hy--company-format-annotate-str (string)
   "Format STRING to send to hy for its annotation."
@@ -1421,15 +1430,32 @@ Not all defuns can be argspeced - eg. C defuns.\"
       (hy--shell-with-shell-buffer
        (hy-shell-send-string-no-output text)))))
 
+(defmacro hy-send-text-to-eval (text-retriever)
+  `(-when-let (text (,text-retriever))
+     (unless (hy--shell-buffer?)
+       (hy-shell-start-or-switch-to-shell))
+     (hy--shell-with-shell-buffer
+      (hy-shell-send-string text))))
+
 ;;;###autoload
 (defun hy-shell-eval-current-form ()
   "Send form containing current point to shell."
   (interactive)
-  (-when-let (text (hy--current-form-string))
-    (unless (hy--shell-buffer?)
-      (hy-shell-start-or-switch-to-shell))
-    (hy--shell-with-shell-buffer
-     (hy-shell-send-string text))))
+  (hy-send-text-to-eval hy--current-form-string))
+
+
+;;;###autoload
+(defun hy-shell-eval-prev-form ()
+  "Send previous form to shell; will fail if there is no preceding sexp"
+  (interactive)
+  (hy-send-text-to-eval hy--prev-form-string))
+
+;;;###autoload
+(defun hy-shell-eval-prev-form-and-forward ()
+  "Send previous form to shell; will fail if there is no preceding sexp"
+  (interactive)
+  (hy-send-text-to-eval hy--prev-form-string)
+  (forward-sexp))
 
 ;;; hy-mode and inferior-hy-mode
 ;;;; Hy-mode setup
@@ -1532,9 +1558,13 @@ Not all defuns can be argspeced - eg. C defuns.\"
 (set-keymap-parent hy-mode-map lisp-mode-shared-map)
 (define-key hy-mode-map (kbd "C-c C-e") 'hy-shell-start-or-switch-to-shell)
 (define-key hy-mode-map (kbd "C-c C-b") 'hy-shell-eval-buffer)
-
+(define-key hy-mode-map (kbd "C-x C-e") 'hy-shell-eval-prev-form) 		; Gnu convention
+(define-key hy-mode-map (kbd "C-c C-r") 'hy-shell-eval-region)    		; aped from lisp-mode
+(define-key hy-mode-map (kbd "C-c C-n") 'hy-shell-eval-prev-form-and-forward)   ; aped from lisp-mode
 (define-key hy-mode-map (kbd "C-c C-t") 'hy-insert-pdb)
 (define-key hy-mode-map (kbd "C-c C-S-t") 'hy-insert-pdb-threaded)
+
+
 
 (provide 'hy-mode)
 
