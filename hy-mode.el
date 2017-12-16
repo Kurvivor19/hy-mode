@@ -231,6 +231,40 @@ will indent special. Exact forms require the symbol and def exactly match.")
 
   "Hy special forms keywords.")
 
+;;; IMenu
+
+;; See `lisp-mode-symbol-regexp'
+(eval-and-compile
+  (defconst hy-mode-symbol-regexp "\\(?:\\sw\\|\\s_\\|\\\\.\\)+"))
+
+(defvar hy--imenu-generic-expression
+  (list
+   (list nil
+	 (purecopy (concat "^\\s-*("
+			   (eval-when-compile
+			     (regexp-opt
+			      hy--kwds-defs
+                              t))
+			   "\\s-+\\(" hy-mode-symbol-regexp "\\)"))
+	 2)
+   (list (purecopy "Variables")
+	 (purecopy (concat "^\\s-*("
+			   (eval-when-compile
+			     (regexp-opt
+			      '("setv" "def")
+                              t))
+			   "\\s-+\\(" hy-mode-symbol-regexp "\\)"))
+	 2)
+   (list (purecopy "Classes")
+	 (purecopy (concat "^\\s-*("
+			   (eval-when-compile
+                             (regexp-opt
+                              '("defclass")
+                              t))
+			   "\\s-+'?\\(" hy-mode-symbol-regexp "\\)"))
+	 2))
+  "Imenu generic expression for Hy mode.  See `imenu-generic-expression'.")
+
 ;;; Font Locks
 ;;;; Definitions
 
@@ -1509,6 +1543,10 @@ Not all defuns can be argspeced - eg. C defuns.\"
     (sp-local-pair '(inferior-hy-mode) "`" "" :actions nil)
     (sp-local-pair '(inferior-hy-mode) "'" "" :actions nil)))
 
+(defun hy--mode-setup-imenu ()
+  "Setup imenu support for hy"
+    (setq-local imenu-generic-expression hy--imenu-generic-expression))
+
 ;;;; Inferior-hy-mode setup
 
 (defun hy--inferior-mode-setup ()
@@ -1552,7 +1590,8 @@ Not all defuns can be argspeced - eg. C defuns.\"
   (hy--mode-setup-font-lock)
   (hy--mode-setup-inferior)
   (hy--mode-setup-smartparens)
-  (hy--mode-setup-syntax))
+  (hy--mode-setup-syntax)
+  (hy--mode-setup-imenu))
 
 ;; Spacemacs users please see spacemacs-hy, all bindings defined there
 (set-keymap-parent hy-mode-map lisp-mode-shared-map)
